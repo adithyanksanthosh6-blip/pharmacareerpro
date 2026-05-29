@@ -24,7 +24,7 @@ export async function GET() {
         source: job.source,
         sourceUrl: job.sourceUrl,
         isActive: true,
-        skills: job.skills,
+       skills: parsedData.skills,
         qualifications: job.qualifications,
         postedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
       });
