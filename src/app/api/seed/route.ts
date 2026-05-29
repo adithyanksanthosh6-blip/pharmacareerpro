@@ -176,7 +176,32 @@ const SAMPLE_JOBS = [
 
 export async function GET() {
   try {
-    // 1. Automatically build the 'cv_uploads' table layout using your exact server specs
+    // 1. Drop the old table variants so we can rebuild with exact expected columns
+    await db.execute(sql`DROP TABLE IF EXISTS "job_listings";`);
+    await db.execute(sql`DROP TABLE IF EXISTS "jobs";`);
+
+    // 2. Rebuild 'job_listings' with ALL 15 columns matching your exact Drizzle scheme schema
+    await db.execute(sql`
+      CREATE TABLE "job_listings" (
+        "id" SERIAL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "company" TEXT NOT NULL,
+        "location" TEXT NOT NULL,
+        "description" TEXT,
+        "requirements" TEXT,
+        "salary" TEXT,
+        "source" TEXT,
+        "source_url" TEXT,
+        "posted_at" TIMESTAMP DEFAULT NOW(),
+        "expires_at" TIMESTAMP DEFAULT NULL,
+        "is_active" BOOLEAN DEFAULT TRUE,
+        "skills" JSONB,
+        "qualifications" JSONB,
+        "created_at" TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 3. Make sure the 'cv_uploads' structural schema is active
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "cv_uploads" (
         "id" SERIAL PRIMARY KEY,
@@ -192,51 +217,7 @@ export async function GET() {
       );
     `);
 
-    // 2. Automatically build the 'job_listings' table variations so the Drizzle query never breaks
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS "job_listings" (
-        "id" SERIAL PRIMARY KEY,
-        "title" TEXT NOT NULL,
-        "company" TEXT NOT NULL,
-        "location" TEXT NOT NULL,
-        "description" TEXT,
-        "requirements" TEXT,
-        "salary" TEXT,
-        "source" TEXT,
-        "source_url" TEXT,
-        "is_active" BOOLEAN DEFAULT TRUE,
-        "skills" JSONB,
-        "qualifications" JSONB,
-        "posted_at" TIMESTAMP DEFAULT NOW()
-      );
-    `);
-
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS "jobs" (
-        "id" SERIAL PRIMARY KEY,
-        "title" TEXT NOT NULL,
-        "company" TEXT NOT NULL,
-        "location" TEXT NOT NULL,
-        "description" TEXT,
-        "requirements" TEXT,
-        "salary" TEXT,
-        "source" TEXT,
-        "source_url" TEXT,
-        "is_active" BOOLEAN DEFAULT TRUE,
-        "skills" JSONB,
-        "qualifications" JSONB,
-        "posted_at" TIMESTAMP DEFAULT NOW()
-      );
-    `);
-
-    // Check if jobs already exist
-    const existing = await db.select({ count: sql<number>`count(*)` }).from(jobListings);
-    const count = Number(existing[0]?.count ?? 0);
-
-    if (count > 0) {
-      return NextResponse.json({ message: "Jobs already seeded and tables verified", count });
-    }
-
+    // 4. Run the data loop insertion safely
     for (const job of SAMPLE_JOBS) {
       await db.insert(jobListings).values({
         title: job.title,
@@ -254,7 +235,10 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ message: "Database structures generated and seeded successfully!", count: SAMPLE_JOBS.length });
+    return NextResponse.json({ 
+      success: true, 
+      message: "Database tables completely updated with full structural schemas and seeded!" 
+    });
   } catch (error: any) {
     console.error("Seed error:", error);
     return NextResponse.json(
