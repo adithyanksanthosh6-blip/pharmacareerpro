@@ -174,7 +174,7 @@ const SAMPLE_JOBS = [
   },
 ];
 
-export async function POST() {
+export async function GET() {
   try {
     // 1. Automatically build the 'cv_uploads' table layout using your exact server specs
     await db.execute(sql`
