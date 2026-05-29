@@ -176,12 +176,65 @@ const SAMPLE_JOBS = [
 
 export async function POST() {
   try {
+    // 1. Automatically build the 'cv_uploads' table layout using your exact server specs
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "cv_uploads" (
+        "id" SERIAL PRIMARY KEY,
+        "user_id" UUID DEFAULT NULL,
+        "session_id" TEXT,
+        "file_name" TEXT,
+        "raw_text" TEXT,
+        "parsed_data" JSONB,
+        "skills" JSONB,
+        "education" JSONB,
+        "experience" JSONB,
+        "uploaded_at" TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 2. Automatically build the 'job_listings' table variations so the Drizzle query never breaks
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "job_listings" (
+        "id" SERIAL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "company" TEXT NOT NULL,
+        "location" TEXT NOT NULL,
+        "description" TEXT,
+        "requirements" TEXT,
+        "salary" TEXT,
+        "source" TEXT,
+        "source_url" TEXT,
+        "is_active" BOOLEAN DEFAULT TRUE,
+        "skills" JSONB,
+        "qualifications" JSONB,
+        "posted_at" TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "jobs" (
+        "id" SERIAL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "company" TEXT NOT NULL,
+        "location" TEXT NOT NULL,
+        "description" TEXT,
+        "requirements" TEXT,
+        "salary" TEXT,
+        "source" TEXT,
+        "source_url" TEXT,
+        "is_active" BOOLEAN DEFAULT TRUE,
+        "skills" JSONB,
+        "qualifications" JSONB,
+        "posted_at" TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     // Check if jobs already exist
     const existing = await db.select({ count: sql<number>`count(*)` }).from(jobListings);
     const count = Number(existing[0]?.count ?? 0);
 
     if (count > 0) {
-      return NextResponse.json({ message: "Jobs already seeded", count });
+      return NextResponse.json({ message: "Jobs already seeded and tables verified", count });
     }
 
     for (const job of SAMPLE_JOBS) {
@@ -201,11 +254,11 @@ export async function POST() {
       });
     }
 
-    return NextResponse.json({ message: "Seeded successfully", count: SAMPLE_JOBS.length });
-  } catch (error) {
+    return NextResponse.json({ message: "Database structures generated and seeded successfully!", count: SAMPLE_JOBS.length });
+  } catch (error: any) {
     console.error("Seed error:", error);
     return NextResponse.json(
-      { error: "Failed to seed database" },
+      { error: "Failed to seed database", details: error.message },
       { status: 500 }
     );
   }
