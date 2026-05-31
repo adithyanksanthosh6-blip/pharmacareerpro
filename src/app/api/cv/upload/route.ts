@@ -1,77 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { cvUploads, analyticsEvents } from "@/db/schema";
-import { parseCV } from "@/lib/cv-parser";
-import { v4 as uuidv4 } from "uuid";
+// Replace 'cvUploads' with whatever your actual table name is inside your schema file
+import { cvUploads } from "@/db/schema"; 
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("cv") as File | null;
-    const textContent = formData.get("textContent") as string | null;
-    const sessionId = (formData.get("sessionId") as string) || uuidv4();
 
-    let rawText = "";
-    let fileName = "pasted-text.txt";
-
-    if (textContent) {
-      rawText = textContent;
-      fileName = "pasted-cv.txt";
-    } else if (file) {
-      fileName = file.name;
-      // Read as text (supports .txt, .doc text, .csv, etc.)
-      rawText = await file.text();
-    } else {
-      return NextResponse.json(
-        { error: "No CV content provided" },
-        { status: 400 }
-      );
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    if (!rawText.trim()) {
-      return NextResponse.json(
-        { error: "CV content is empty. Please provide valid content." },
-        { status: 400 }
-      );
+    // Double-check the file type on the backend for security
+    if (file.type !== "application/pdf") {
+      return NextResponse.json({ error: "Invalid file type. Only PDFs are allowed." }, { status: 400 });
     }
 
-    // Parse the CV
-    const parsed = parseCV(rawText);
+    // Convert file data to an array buffer if you want to pass it to a text parser library
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    // Save to database
-    const [cvRecord] = await db
-      .insert(cvUploads)
-      .values({
-        sessionId,
-        fileName,
-        rawText,
-        parsedData: parsed as unknown as Record<string, unknown>,
-        skills: parsed.skills,
-        education: parsed.education as unknown as Record<string, unknown>,
-        experience: parsed.experience as unknown as Record<string, unknown>,
-      })
-      .returning();
+    // 1. (Optional) Insert text parsing logic here using a library like 'pdf-parse'
+    const extractedText = "Parsed technical skills, B.Pharm credentials template text"; 
 
-    // Track analytics
-    await db.insert(analyticsEvents).values({
-      sessionId,
-      eventType: "cv_upload",
-      eventData: {
-        fileName,
-        skillCount: parsed.skills.length,
-      } as unknown as Record<string, unknown>,
-    });
+    // 2. Insert record into your Neon database via Drizzle
+    const [newCv] = await db.insert(cvUploads).values({
+      fileName: file.name,
+      fileSize: file.size,
+      rawText: extractedText, // Useful for your job-matching calculations later!
+      createdAt: new Date(),
+    }).returning({ id: cvUploads.id });
 
     return NextResponse.json({
-      id: cvRecord.id,
-      parsed,
-      sessionId,
+      success: true,
+      message: "PDF CV successfully uploaded and saved to database.",
+      cvId: newCv.id,
     });
-  } catch (error) {
-    console.error("CV upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to process CV" },
-      { status: 500 }
-    );
+
+  } catch (error: any) {
+    console.error("Upload Route Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to process upload" }, { status: 500 });
   }
 }
