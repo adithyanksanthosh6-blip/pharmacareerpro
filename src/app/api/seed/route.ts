@@ -44,7 +44,6 @@ const AGGREGATED_EXTERNAL_JOBS: any[] = [
 ];
 
 async function runSeeder() {
-  // Clear any old structural items to ensure a fresh, clean sync
   try {
     await db.delete(jobListings);
   } catch (e) {
@@ -69,7 +68,6 @@ async function runSeeder() {
   }
 }
 
-// Fixes browser direct hits (GET)
 export async function GET() {
   try {
     await runSeeder();
@@ -82,7 +80,6 @@ export async function GET() {
   }
 }
 
-// FIXES YOUR 405 ERROR: Handles automated frontend triggers (POST)
 export async function POST(request: NextRequest) {
   try {
     await runSeeder();
@@ -93,5 +90,4 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
 }
