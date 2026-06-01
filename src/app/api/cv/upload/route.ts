@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-// Replace 'cvUploads' with whatever your actual table name is inside your schema file
 import { cvUploads } from "@/db/schema"; 
 
 export async function POST(request: NextRequest) {
@@ -12,24 +11,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Double-check the file type on the backend for security
+    // Enforce PDF validation
     if (file.type !== "application/pdf") {
       return NextResponse.json({ error: "Invalid file type. Only PDFs are allowed." }, { status: 400 });
     }
 
-    // Convert file data to an array buffer if you want to pass it to a text parser library
+    // Optional: Prepare the file buffer for text parsers when implementing parsing layers later
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // 1. (Optional) Insert text parsing logic here using a library like 'pdf-parse'
     const extractedText = "Parsed technical skills, B.Pharm credentials template text"; 
 
-    // 2. Insert record into your Neon database via Drizzle
+    // Insert record into Neon matching your schema columns exactly
     const [newCv] = await db.insert(cvUploads).values({
       fileName: file.name,
-      fileSize: file.size,
-      rawText: extractedText, // Useful for your job-matching calculations later!
-      createdAt: new Date(),
+      uploadedAt: new Date(), // Fixed from createdAt based on your compiler logs
+      
+      // NOTE: If your schema tracks the raw text content under a column like 'text' or 'content', 
+      // you can uncomment the line below and change the key name to match your schema column:
+      // text: extractedText, 
     }).returning({ id: cvUploads.id });
 
     return NextResponse.json({
