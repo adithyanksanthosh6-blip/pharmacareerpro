@@ -1,7 +1,9 @@
-"export default";
+"use client"; // Tells Next.js this uses React state hooks
+
 import { useState } from "react";
 
-export function CvUpload() {
+// Using 'export default' so src/app/page.tsx can find it perfectly
+export default function CVUploadSection() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -9,7 +11,7 @@ export function CvUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Guard rail: Ensure it's strictly a PDF
+    // Restrict strictly to PDF files
     if (file.type !== "application/pdf") {
       setMessage("Please select a valid PDF file.");
       return;
@@ -31,7 +33,6 @@ export function CvUpload() {
 
       if (response.ok) {
         setMessage(`Success! CV uploaded. ID: ${data.cvId}`);
-        // Optional: Trigger your job matching route here automatically!
       } else {
         setMessage(`Upload failed: ${data.error}`);
       }
