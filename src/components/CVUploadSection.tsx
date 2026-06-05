@@ -1,9 +1,14 @@
-"use client"; // Tells Next.js this uses React state hooks
+TypeScript
+"use client";
 
 import { useState } from "react";
 
-// Using 'export default' so src/app/page.tsx can find it perfectly
-export default function CVUploadSection() {
+// 1. Tell TypeScript exactly what props your main page is passing down
+interface CVUploadSectionProps {
+  onCVParsed: (data: { id: string; parsed: any; sessionId: string; }) => void;
+}
+
+export default function CVUploadSection({ onCVParsed }: CVUploadSectionProps) {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -11,7 +16,6 @@ export default function CVUploadSection() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Restrict strictly to PDF files
     if (file.type !== "application/pdf") {
       setMessage("Please select a valid PDF file.");
       return;
@@ -24,7 +28,8 @@ export default function CVUploadSection() {
     formData.append("cv", file);
 
     try {
-      const response = await fetch("/api/upload", {
+      // Points exactly to your deep API folder structure
+      const response = await fetch("/api/cv/upload", {
         method: "POST",
         body: formData,
       });
@@ -32,7 +37,14 @@ export default function CVUploadSection() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(`Success! CV uploaded. ID: ${data.cvId}`);
+        setMessage("Success! CV uploaded successfully.");
+        
+        // 2. Trigger the callback so the main page knows the data is ready
+        onCVParsed({
+          id: String(data.cvId),
+          parsed: data.parsed || {},
+          sessionId: data.sessionId || `session_${Date.now()}`,
+        });
       } else {
         setMessage(`Upload failed: ${data.error}`);
       }
