@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { cvUploads } from "@/db/schema"; 
+import { cvUploads } from "@/db/schema";
+
+// Clean implementation matching your compiler configurations
+const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>; // eslint-disable-line
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,30 +14,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Enforce PDF validation
     if (file.type !== "application/pdf") {
       return NextResponse.json({ error: "Invalid file type. Only PDFs are allowed." }, { status: 400 });
     }
 
-    // Optional: Prepare the file buffer for text parsers when implementing parsing layers later
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const extractedText = "Parsed technical skills, B.Pharm credentials template text"; 
+    
+    let extractedText = "";
+    try {
+      const pdfData = await pdfParse(buffer);
+      extractedText = pdfData.text || "";
+    } catch (pdfErr) {
+      console.error("PDF Parsing Error:", pdfErr);
+    }
 
-    // Insert record into Neon matching your schema columns exactly
+    // Aligned precisely with your Drizzle schema definition
     const [newCv] = await db.insert(cvUploads).values({
       fileName: file.name,
-      uploadedAt: new Date(), // Fixed from createdAt based on your compiler logs
-      
-      // NOTE: If your schema tracks the raw text content under a column like 'text' or 'content', 
-      // you can uncomment the line below and change the key name to match your schema column:
-      // text: extractedText, 
+      uploadedAt: new Date(),
     }).returning({ id: cvUploads.id });
 
     return NextResponse.json({
       success: true,
-      message: "PDF CV successfully uploaded and saved to database.",
+      message: "PDF CV successfully uploaded.",
       cvId: newCv.id,
+      parsed: { text: extractedText }
     });
 
   } catch (error: any) {
