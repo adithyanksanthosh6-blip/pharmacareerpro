@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { cvUploads } from "@/db/schema";
 
-// Clean implementation matching your compiler configurations
-const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>; // eslint-disable-line
+// 1. Force Vercel to skip static page checking for this file during build time
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +23,15 @@ export async function POST(request: NextRequest) {
     
     let extractedText = "";
     try {
+      // 2. Tucked safely inside the action block so it won't trigger compilation warnings
+      const pdfParse = require("pdf-parse");
       const pdfData = await pdfParse(buffer);
       extractedText = pdfData.text || "";
     } catch (pdfErr) {
       console.error("PDF Parsing Error:", pdfErr);
     }
 
-    // Aligned precisely with your Drizzle schema definition
+    // Matches your exact Drizzle database setup
     const [newCv] = await db.insert(cvUploads).values({
       fileName: file.name,
       uploadedAt: new Date(),
